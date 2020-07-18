@@ -2,19 +2,16 @@
 
 > 每个学计算机的男孩都有在 IPv4 的世界实现端到端通信的想法。
 
-有很多 bug 还没改。
-
 ``` shell
 mvn test
 ```
 
-## Socket 协议
+## 协议细节
 
-Client => Server
+### Server and Peer
 
-1. `ClientLabel <HexString>`
+- P: Peer
+- S: Server
 
-Server => Client
-
-1. `WaitForPeerConnect`
-2. `PeerConnectionPreceding`
+1. P => S `RelaySocket Protocol v1` `ClientLabel <HexString>`
+2. S => P `WaitForPeerConnect` 或 `PeerConnectionPreceding`

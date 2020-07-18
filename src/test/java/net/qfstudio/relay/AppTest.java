@@ -14,14 +14,14 @@ public class AppTest {
 
         Server server = new Server(port);
 
-        new Thread(){
+        new Thread("Server"){
             @Override
             public void run() {
                 server.start();
             }
         }.start();
 
-        new Thread(){
+        new Thread("Peer 1"){
             @Override
             public void run() {
                 Peer peer = new Peer("localhost", port, "a1");
@@ -29,7 +29,7 @@ public class AppTest {
             }
         }.start();
 
-        new Thread(){
+        new Thread("Peer 2"){
             @Override
             public void run() {
                 Peer peer = new Peer("localhost", port, "a1");

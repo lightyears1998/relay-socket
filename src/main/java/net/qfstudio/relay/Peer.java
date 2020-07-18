@@ -34,6 +34,7 @@ public class Peer {
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true) ;
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()), 1);
 
+            out.println("RelaySocket Protocol v1");
             out.println(String.format("ClientLabel %s", this.label));
 
             String response;
@@ -56,7 +57,6 @@ public class Peer {
             }
 
             socket.close();
-
         } catch (IOException ex) {
             ex.printStackTrace();
         }

@@ -4,33 +4,52 @@ import java.util.HashMap;
 import java.net.Socket;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 
+/**
+ * @TODO
+ *
+ * 1. 抵御恶意连接。
+ * 2. 并发同步。
+ * 3. 继续重构。
+ */
 
 /**
  * 充当中介的服务器端
  */
 public class Server {
-    private String classname;
-    private String hashID;
+    protected LogUtil util;
 
     private int port;
-    private HashMap<String, Socket> previous;
+    private HashMap<String, Socket> previousSockets;
 
-    private ServerSocket server;
+    private ServerSocket serverSocket;
 
     public Server(int port) {
-        this.classname = this.getClass().getName();
-        this.hashID = Integer.toHexString(System.identityHashCode(this));
+        this.util = LogUtil.obtainLogUtilFrom(this);
         this.port = port;
-        this.previous = new HashMap<String, Socket>();
+        this.previousSockets = new HashMap<String, Socket>();
+    }
+
+    public static void main(String[] args) {
+        int port = 15267;
+        if (args.length == 1) {
+            port = Integer.parseInt(args[0]);
+        }
+        new Server(port).start();
     }
 
     public void start() {
         try {
-            server = new ServerSocket(this.port);
+            serverSocket = new ServerSocket(this.port);
+            util.log(String.format("Server operating at <localhost:%d>", this.port));
+
             mainLoop();
         } catch (IOException ex) {
             ex.printStackTrace();
@@ -40,78 +59,91 @@ public class Server {
     protected void mainLoop() {
         while (true) {
             try {
-                Socket socket = server.accept();
+                Socket nextClientSocket = serverSocket.accept();
+                util.log(String.format("New socket connection: %s",
+                        nextClientSocket.getRemoteSocketAddress().toString()));
 
-                new Runnable(){
+                new Thread() {
                     @Override
                     public void run() {
-                        try {
-                            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()), 1);
-                            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-
-                            String clientInput = in.readLine();
-                            if (clientInput.startsWith("ClientLabel")) {
-                                String label = clientInput.replaceFirst("ClientLabel", "").trim();
-                                Socket previousSocket = previous.get(label);
-                                if (previousSocket != null) {
-                                    out.println("PeerConnectionPreceding");
-                                    log(String.format("label %s: Peer connection established.", label));
-
-                                    BufferedReader previousIn = new BufferedReader(new InputStreamReader(previousSocket.getInputStream()), 1);
-                                    PrintWriter previousOut = new PrintWriter(previousSocket.getOutputStream(), true);
-                                    previousOut.println("PeerConnectionPreceding");
-
-                                    new Thread() {
-                                        @Override
-                                        public void run() {
-                                            try {
-                                                String buffer;
-                                                while ((buffer = in.readLine()) != null) {
-                                                    log(buffer);
-                                                    previousOut.println(buffer);
-                                                }
-                                            } catch (IOException ex) {
-                                                ex.printStackTrace();
-                                            }
-                                        }
-                                    }.start();
-
-                                    new Thread() {
-                                        @Override
-                                        public void run() {
-                                            try {
-                                                String buffer;
-                                                while ((buffer = previousIn.readLine()) != null) {
-                                                    log(buffer);
-                                                    out.println(buffer);
-                                                }
-                                            } catch (IOException ex) {
-                                                ex.printStackTrace();
-                                            }
-                                        }
-                                    }.start();
-                                } else {
-                                    out.println("WaitForPeerConnect");
-                                    previous.put(label, socket);
-
-                                    log(String.format("label %s: Got first peer.", label));
-                                }
-                            } else {
-                                log("Unrecognized protocol.");
-                            }
-
-                        } catch (IOException ex) {
-                            ex.printStackTrace();
-                        }
+                        handleClientSocket(nextClientSocket);
                     }
-                }.run();
-            } catch (Exception ex) {
+                }.start();
+
+            } catch (IOException ex) {
                 ex.printStackTrace();
             }
         }
     }
 
-    protected void log(String str) {
-        System.out.println(String.format("%s <%s> %s", this.hashID, this.classname, str));
+    protected void handleClientSocket(Socket clientSocket) {
+        try {
+            BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+
+            String clientInput = in.readLine();
+            if (clientInput.startsWith("RelaySocket Protocol v1")) {
+                clientInput = in.readLine();
+
+                String label = clientInput.replaceFirst("ClientLabel", "").trim();
+
+                synchronized (this) {
+                    Socket previousSocket = previousSockets.get(label);
+
+                    if (previousSocket != null) {
+                        twistSockets(previousSocket, clientSocket);
+
+                        util.log(String.format("label %s: Peer connection established.", label));
+                    } else {
+                        out.println("WaitForPeerConnect");
+                        previousSockets.put(label, clientSocket);
+
+                        util.log(String.format("label %s: Got first peer.", label));
+                    }
+                }
+            } else {
+                util.log("Unrecognized protocol.");
+                clientSocket.close();
+            }
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    protected void twistSockets(Socket a, Socket b) throws IOException {
+        try {
+            PrintWriter aOut = new PrintWriter(a.getOutputStream(), true);
+            PrintWriter bOut = new PrintWriter(b.getOutputStream(), true);
+
+            aOut.println("PeerConnectionPreceding");
+            bOut.println("PeerConnectionPreceding");
+
+            new Thread() {
+                @Override
+                public void run() {
+                    glueSocketStreams(a, b);
+                }
+            }.start();
+
+            new Thread() {
+                @Override
+                public void run() {
+                    glueSocketStreams(b, a);
+                }
+            }.start();
+
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    protected void glueSocketStreams(Socket in, Socket out) {
+        try {
+            InputStream inStream  = in.getInputStream();
+            OutputStream outStream = out.getOutputStream();
+            inStream.transferTo(outStream);
+        } catch(IOException ex) {
+            ex.printStackTrace();
+        }
     }
 }
