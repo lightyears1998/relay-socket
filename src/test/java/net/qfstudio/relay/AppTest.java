@@ -1,5 +1,7 @@
 package net.qfstudio.relay;
 
+import java.io.IOException;
+
 import org.junit.Test;
 
 
@@ -13,15 +15,13 @@ public class AppTest {
         int port = 5354;
 
         Server server = new Server(port);
+        try {
+            server.start();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
 
-        new Thread("Server"){
-            @Override
-            public void run() {
-                server.start();
-            }
-        }.start();
-
-        new Thread("Peer 1"){
+        new Thread("Peer 1") {
             @Override
             public void run() {
                 Peer peer = new Peer("localhost", port, "a1");
@@ -29,7 +29,7 @@ public class AppTest {
             }
         }.start();
 
-        new Thread("Peer 2"){
+        new Thread("Peer 2") {
             @Override
             public void run() {
                 Peer peer = new Peer("localhost", port, "a1");

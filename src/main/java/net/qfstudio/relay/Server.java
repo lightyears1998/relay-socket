@@ -30,7 +30,7 @@ public class Server {
     private ServerSocket serverSocket;
 
     public Server(int port) {
-        this.util = LogUtil.obtainLogUtilFrom(this);
+        this.util = LogUtil.setupUtilFor(this);
         this.port = port;
         this.previousSockets = new HashMap<String, Socket>();
     }
@@ -50,18 +50,23 @@ public class Server {
             }
         });
 
-        server.start();
-    }
-
-    public void start() {
         try {
-            serverSocket = new ServerSocket(this.port);
-            util.log(String.format("Server operating at <localhost:%d>", this.port));
-
-            mainLoop();
+            server.start();
         } catch (IOException ex) {
             ex.printStackTrace();
         }
+    }
+
+    public void start() throws IOException {
+        serverSocket = new ServerSocket(this.port);
+        util.log(String.format("Server operating at <localhost:%d>", this.port));
+
+        new Thread() {
+            @Override
+            public void run() {
+                mainLoop();
+            }
+        }.start();
     }
 
     public void stop() {

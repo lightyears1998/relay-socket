@@ -9,7 +9,7 @@ public class LogUtil {
         this.objectID = objectID;
     }
 
-    public static LogUtil obtainLogUtilFrom(Object obj) {
+    public static LogUtil setupUtilFor(Object obj) {
         return new LogUtil(obj.getClass().getName(), Integer.toHexString(System.identityHashCode(obj)));
     }
 
