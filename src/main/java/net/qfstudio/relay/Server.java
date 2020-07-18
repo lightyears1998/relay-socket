@@ -42,7 +42,17 @@ public class Server {
         if (args.length == 1) {
             port = Integer.parseInt(args[0]);
         }
-        new Server(port).start();
+
+        Server server = new Server(port);
+
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
+            public void run() {
+                server.stop();
+            }
+        });
+
+        server.start();
     }
 
     public void start() {
@@ -51,6 +61,16 @@ public class Server {
             util.log(String.format("Server operating at <localhost:%d>", this.port));
 
             mainLoop();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    public void stop() {
+        try {
+            if (serverSocket != null) {
+                serverSocket.close();
+            }
         } catch (IOException ex) {
             ex.printStackTrace();
         }
