@@ -6,8 +6,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
@@ -67,13 +65,17 @@ public class Server {
     }
 
     public void stop() {
+        util.log("Shutting down server.");
+
         try {
-            if (serverSocket != null) {
+            if (serverSocket != null && !serverSocket.isClosed()) {
                 serverSocket.close();
             }
         } catch (IOException ex) {
             ex.printStackTrace();
         }
+
+        util.log("Shut.");
     }
 
     protected void mainLoop() {
@@ -111,6 +113,7 @@ public class Server {
                     Socket previousSocket = previousSockets.get(label);
 
                     if (previousSocket != null) {
+                        previousSockets.remove(label);
                         twistSockets(previousSocket, clientSocket);
 
                         util.log(String.format("label %s: Peer connection established.", label));
