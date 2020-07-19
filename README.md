@@ -4,6 +4,9 @@
 
 ``` shell
 mvn test
+
+mvn package
+java -cp relay-socket-1.0-SNAPSHOT.jar net.qfstudio.relay.Server
 ```
 
 ## 协议细节

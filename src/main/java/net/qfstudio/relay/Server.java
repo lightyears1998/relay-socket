@@ -14,7 +14,7 @@ import java.net.ServerSocket;
  * @TODO
  *
  * 1. 抵御恶意连接。
- * 2. 并发同步。
+ * 2. 优化并发的同步问题。
  * 3. 继续重构。
  */
 
